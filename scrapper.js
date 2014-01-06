@@ -44,25 +44,28 @@ function log(obj) {
 }
 
 function slugify(str) {
-    var re, l;
+    var out, strl, re, l;
     
-    re = / |[§\-=±!@#\$%\^&\*()_\+`~\[\]{};'\\:\"\|,\./<>\?\u2010-\u28ff]/;
+    re = /[§\-=±!@#\$%\^&\*()_\+`~\[\]{};'\\:\"\|,\./<>\?\s\u2010-\u28ff]/;
     str = str.toLowerCase()
     str = str.split(re);
     
+    out = [];
     l = str.length;
     while (l--) {
-        if (str[l] === '') {
-            str.splice(l, 1);
+        strl = str[l];
+        if (strl !== '') {
+            out.push(strl);
         }
     }
     
-    return unidecode(str.join('-'));
+    return unidecode(out.join('-'));
 }
 
 function readStdin(callback) {
     var stdin = process.stdin;
     var out = '';
+    var count = 0;
     
     stdin.setEncoding('utf8');
     
@@ -73,10 +76,14 @@ function readStdin(callback) {
         var data = stdin.read();
         
         if (data === null) {
-            onEnd();
+            if (count === 0) {
+                onEnd();
+            }
         } else {
             out += data;
         }
+        
+        count++;
     }
     
     function onEnd() {
