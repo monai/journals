@@ -4,18 +4,36 @@ var request = require('request');
 var jsdom = require('jsdom');
 var unidecode = require('unidecode');
 
+var argv;
+
 module.exports = {
-    getParam: getParam,
+    setup: setup,
+    start: start,
+    help: help,
     scrape: scrape,
     log: log,
     slugify: slugify
 };
 
-function getParam(callback) {
-    readStdin(function (data) {
-        var param = data.length ? data : optimist.argv._[0];
-        callback(param);
-    });
+function setup(callback) {
+    argv = optimist.argv;
+    optimist.describe('h', 'print this help');
+    callback(optimist);
+    
+    if (argv.h) {
+        help();
+    }
+}
+
+function start(callback) {
+    getParam(function (param) {
+        callback(param, argv);
+    })
+}
+
+function help() {
+    console.log(optimist.help());
+    process.exit(0);
 }
 
 function scrape(url, callback) {
@@ -44,46 +62,52 @@ function log(obj) {
 }
 
 function slugify(str) {
-    var out, strl, re, l;
+    var out, re, i, l, stri;
     
-    re = /[§\-=±!@#\$%\^&\*()_\+`~\[\]{};'\\:\"\|,\./<>\?\s\u2010-\u28ff]/;
+    re = /[§\-=±!@#\$%\^&\*\(\)_\+`~\[\]{};'\\:\"\|,\./<>\?\s\u2010-\u28ff]/;
     str = str.toLowerCase()
     str = str.split(re);
     
     out = [];
-    l = str.length;
-    while (l--) {
-        strl = str[l];
-        if (strl !== '') {
-            out.push(strl);
+    for (i = 0, l = str.length; i < l; i++) {
+        stri = str[i];
+        if (stri) {
+            out.push(stri);
         }
     }
     
     return unidecode(out.join('-'));
 }
 
+function getParam(callback) {
+    var isTTY, param;
+    
+    isTTY = !! process.stdin.isTTY;
+    param = optimist.argv._[0] || null;
+    
+    if ( ! isTTY && ! param) {
+        readStdin(callback);
+    } else {
+        callback(param);
+    }
+}
+
 function readStdin(callback) {
-    var stdin = process.stdin;
-    var out = '';
-    var count = 0;
+    var stdin, out;
+    
+    stdin = process.stdin;
+    out = '';
     
     stdin.setEncoding('utf8');
-    
     stdin.on('readable', onReadable);
     stdin.on('end', onEnd);
     
-    function onReadable () {
+    function onReadable() {
         var data = stdin.read();
-        
-        if (data === null) {
-            if (count === 0) {
-                onEnd();
-            }
-        } else {
+
+        if (data !== null) {
             out += data;
         }
-        
-        count++;
     }
     
     function onEnd() {
