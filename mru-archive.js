@@ -1,25 +1,41 @@
 var sc = require('./scrapper');
 
-sc.getParam(function (url) {
+sc.setup(function (optimist) {
+    optimist
+    .usage([
+        'Usage $0 URL -o [DIRECTORY]',
+        'If no url argument is specified, the standard input is used.'
+    ].join('\n'));
+});
+
+sc.start(function (url, argv) {
+    if ( ! url) {
+        sc.help();
+    }
+    
     sc.scrape(url, onWindow);
 });
 
 function onWindow(error, window) {
+    var $, $a, out, link
+    
     if (error) throw error;
     
-    var $ = window.$;
-    var $a = $('#text a');
+    $ = window.$;
+    $a = $('#text a');
     
-    var out = [];
-    var href;
+    out = [];
     $a.each(function (i) {
-        href = this.href;
-        if ( ! ~href.indexOf('dwn')) {
-            out.push(this.href);
+        var $this = $(this);
+        
+        link = this.href;
+        if ( ! ~link.indexOf('dwn')) {
+            out.push({
+                title: sc.slugify($this.prevAll('font').text()),
+                link: link
+            });
         }
     });
     
     sc.log(out);
-    
-    process.exit(0);
 };

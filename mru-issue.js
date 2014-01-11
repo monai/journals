@@ -1,48 +1,75 @@
-var fs = require('fs');
+var path = require('path');
 var util = require('util');
+var fs = require('fs');
+var async = require('async');
 var sc = require('./scrapper');
 
-sc.getParam(function (urls) {
-    urls = JSON.parse(urls);
-    
-    urls.forEach(function (url) {
-        sc.scrape(url, onWindow);
-    });
+sc.setup(function (optimist) {
+    optimist
+    .usage([
+        'Usage $0 JSON -o [DIRECTORY]',
+        'If no json argument is specified, the standard input is used.'
+    ].join('\n'))
+    .describe('o', 'output directory');
 });
 
-function onWindow(error, window) {
-    if (error) throw error;
+sc.start(function (issues, argv) {
+    var outDir, q;
     
-    var $ = window.$;
-    var $font = $('#text font');
+    if ( ! issues) {
+        sc.help();
+    }
     
-    var title;
-    var items = {};
-    var current;
+    issues = JSON.parse(issues);
+    outDir = argv.o || '';
     
-    $font.each(function (i) {
-        var $this = $(this);
-        var _title = $this.text();
-        var link;
-        
-        if (i === 0) {
-            title = sc.slugify(_title);
-            // current = items[title] = [];
-            current = items = [];
-            console.log(title);
-        } else {
-            link = $this.nextAll('a').get(0);
-            
-            if (link) {
-                current.push({
-                    title: sc.slugify(_title),
-                    link: link.href
-                });
+    q = async.queue(worker, 8);
+    q.push(issues);
+    
+    function worker(task, callback) {
+        sc.scrape(task.link, function (error, window) {
+            if (error) {
+                callback(error);
+                return;
             }
+            
+            onWindow({
+                window: window,
+                title: task.title,
+                outDir: outDir
+            }, callback);
+        });
+    }
+});
+
+function onWindow(data, callback) {
+    var win, doc, $, $font;
+    var l, items, filename;
+    
+    win = data.window;
+    doc = win.document;
+    $ = win.$;
+    $font = $('#text font');
+    
+    items = [];
+    $font.each(function (i) {
+        var $this, title;
+        
+        $this = $(this);
+        title = $this.text();
+        link = $this.nextAll('a').get(0);
+        
+        if (link) {
+            items.push({
+                title: sc.slugify(title),
+                link: link.href
+            });
         }
     });
     
-    var filename = util.format('links/%s.json', title);
-    fs.writeFileSync(filename, JSON.stringify(items));
-}
+    filename = path.join(data.outDir, util.format('%s.json', data.title));
+    fs.writeFile(filename, JSON.stringify(items), function (error) {
+        callback(error);
+    });
+};
 
