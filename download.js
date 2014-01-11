@@ -6,39 +6,64 @@ var mkdirp = require('mkdirp');
 var request = require('request');
 var sc = require('./scrapper');
 
-var OUT_BASE = 'out';
-
 async.waterfall([
-    getLinkList,
+    setup,
+    start,
+    readLinks,
     createDirectory,
-    download,
-    end
+    download
 ]);
 
-function getLinkList(callback) {
-    sc.getParam(function (file) {
-        var base, links;
+function setup(callback) {
+    sc.setup(function (optimist) {
+        optimist
+        .usage([
+            'Usage $0 FILE -o [DIRECTORY]',
+            'If no file argument is specified, the standard input is used.'
+        ].join('\n'))
+        .describe('o', 'output directory');
         
-        base = path.basename(file, '.json');
-        links = fs.readFileSync(file, 'utf8');
-        links = links && JSON.parse(links);
+        callback(null);
+    });
+}
+
+function start(callback) {
+    sc.start(function (filename, argv) {
+        var outDir, q;
         
-        if ( ! links) {
-            callback(new Error('Bad file'));
-        } else {
-            callback(null, base, links);
+        if ( ! filename) {
+            sc.help();
         }
+        
+        outDir = argv.o || '';
+        
+        callback(null, filename, outDir);
     });
 }
 
-function createDirectory(base, links, callback) {
-    base = path.join(OUT_BASE, base);
-    mkdirp(base, function (error) {
-        callback(error, base, links);
+function readLinks(filename, outDir, callback) {
+    var title, links;
+    
+    title = path.basename(filename, '.json');
+    links = fs.readFileSync(filename, 'utf8');
+    links = links && JSON.parse(links);
+    
+    outDir = path.join(path.resolve(__dirname, outDir), title);
+    
+    if ( ! links) {
+        callback(new Error('Bad file'));
+    } else {
+        callback(null, links, outDir);
+    }
+}
+
+function createDirectory(links, outDir, callback) {
+    mkdirp(outDir, function (error) {
+        callback(error, links, outDir);
     });
 }
 
-function download(base, links, callback) {
+function download(links, outDir, callback) {
     var q;
     
     q = async.queue(worker, 8);
@@ -46,26 +71,21 @@ function download(base, links, callback) {
     q.drain = drain;
     
     function worker(task, callback) {
-        get(task, callback);
-    }
-    
-    function drain() {
-        callback(null);
-    }
-    
-    function get(task, callback) {
         var options = {
             url: task.link,
             encoding: null
         };
         
         request(options, function (error, response, body) {
-            if (error) throw error;
+            var filename, statusCode;
             
-            var filename = path.join(base, task.title) +'.pdf';
-            var statusCode = response.statusCode;
+            if (error) {
+                callback(error);
+                return;
+            }
             
-            console.log(options.url);
+            filename = path.join(outDir, task.title) +'.pdf';
+            statusCode = response.statusCode;
             
             if (statusCode === 200) {
                 fs.writeFile(filename, body, function (error) {
@@ -76,9 +96,9 @@ function download(base, links, callback) {
             }
         });
     }
-}
-
-function end() {
-    process.exit(0);
+    
+    function drain() {
+        callback(null);
+    }
 }
 
