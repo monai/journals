@@ -1,8 +1,12 @@
+var fs = require('fs');
+var path = require('path');
 var util = require('util');
 var optimist = require('optimist');
 var request = require('request');
 var jsdom = require('jsdom');
 var unidecode = require('unidecode');
+var mkdirp = require('mkdirp');
+var defaults = require('./defaults');
 
 var argv;
 
@@ -11,8 +15,11 @@ module.exports = {
     start: start,
     help: help,
     scrape: scrape,
+    writeJSON: writeJSON,
     log: log,
-    slugify: slugify
+    slugify: slugify,
+    
+    defaults: defaults
 };
 
 function setup(callback) {
@@ -55,6 +62,20 @@ function scrape(url, callback) {
     function onDOM(error, window) {
         callback(error, window);
     }
+}
+
+function writeJSON(options, data, callback) {
+    var filename;
+    
+    filename = path.resolve(__dirname, options.outDir);
+    mkdirp(filename, function (error) {
+        filename = path.join(filename, util.format('%s.json', options.title));
+        fs.writeFile(filename, JSON.stringify(data), function (error) {
+            if (callback) {
+                callback(error);
+            }
+        });
+    });
 }
 
 function log(obj) {

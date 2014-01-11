@@ -1,46 +1,7 @@
-var path = require('path');
-var util = require('util');
-var fs = require('fs');
-var async = require('async');
 var sc = require('./scrapper');
 
-sc.setup(function (optimist) {
-    optimist
-    .usage([
-        'Usage $0 JSON -o [DIRECTORY]',
-        'If no json argument is specified, the standard input is used.'
-    ].join('\n'))
-    .describe('o', 'output directory');
-});
-
-sc.start(function (issues, argv) {
-    var outDir, q;
-    
-    if ( ! issues) {
-        sc.help();
-    }
-    
-    issues = JSON.parse(issues);
-    outDir = argv.o || '';
-    
-    q = async.queue(worker, 8);
-    q.push(issues);
-    
-    function worker(task, callback) {
-        sc.scrape(task.link, function (error, window) {
-            if (error) {
-                callback(error);
-                return;
-            }
-            
-            onWindow({
-                window: window,
-                title: task.title,
-                outDir: outDir
-            }, callback);
-        });
-    }
-});
+sc.setup(sc.defaults.issueSetup);
+sc.start(sc.defaults.issueStart(sc, onWindow));
 
 function onWindow(data, callback) {
     var win, doc, $, $font;
@@ -67,9 +28,5 @@ function onWindow(data, callback) {
         }
     });
     
-    filename = path.join(data.outDir, util.format('%s.json', data.title));
-    fs.writeFile(filename, JSON.stringify(items), function (error) {
-        callback(error);
-    });
+    sc.writeJSON(data, items, callback);
 };
-
