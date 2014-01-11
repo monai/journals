@@ -44,6 +44,7 @@ sc.start(function (issues, argv) {
 
 function onWindow(data, callback) {
     var win, doc, $, $articles, $titles, $authors, $links;
+    var title, author, link;
     var l, items, filename;
     
     win = data.window;
@@ -55,16 +56,21 @@ function onWindow(data, callback) {
     $links =  $articles.find('.tocGalleys');
     
     l = $titles.length;
-    if ((l | $authors.length | $links.length) !== l) {
-        console.error('Elements count mismatch');
-        process.exit(1);
+    if ((l | $authors.length | $links.length) !== l || l === 0) {
+        callback(new Error('Bad element count'));
+        return;
     }
     
     items = [];
     while (l--) {
+        author = $($authors.get(l)).text();
+        title = $($titles.get(l)).text();
+        link = $($links.get(l)).find('a').get(0);
+        link = link && link.href.replace('/article/view/', '/article/download/')
+        
         items.push({
-            title: sc.slugify($($authors.get(l)).text() +'-'+ $($titles.get(l)).text()),
-            link: $($links.get(l)).find('a').get(0).href.replace('/article/view/', '/article/download/')
+            title: sc.slugify(author +'-'+ title),
+            link: link
         });
     }
     
