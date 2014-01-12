@@ -7,14 +7,20 @@ sc.setup(sc.defaults.issueSetup);
 sc.start(sc.defaults.issueStart(sc, onWindow));
 
 function onWindow(data, callback) {
-    var win, doc, $, $items;
+    var win, doc, $, $items, titleClass;
     var title, author, link, doPush;
     var items, filename, q;
     
     win = data.window;
     doc = win.document;
     $ = win.$;
+    
     $items = $('.itemFullText .header_style, .itemFullText .author_style');
+    titleClass = 'header_style';
+    if ($items.length === 0) {
+        $items = $('.itemList .catItemTitle, .itemList .catItemAuthor');
+        titleClass = 'catItemTitle';
+    }
     
     items = [];
     $items.each(function (i) {
@@ -22,7 +28,7 @@ function onWindow(data, callback) {
         
         $this = $(this);
         
-        if ($this.hasClass('header_style')) {
+        if ($this.hasClass(titleClass)) {
             if (doPush) {
                 push();
             }
