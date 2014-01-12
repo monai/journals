@@ -84,11 +84,14 @@ function download(links, outDir, callback) {
                 return;
             }
             
-            filename = path.join(outDir, task.title) +'.pdf';
+            filename = path.join(outDir, task.title.substr(0, 251)) +'.pdf';
             statusCode = response.statusCode;
             
             if (statusCode === 200) {
                 fs.writeFile(filename, body, function (error) {
+                    if (error) {
+                        console.error(error);
+                    }
                     callback(error);
                 });
             } else {
