@@ -68,7 +68,9 @@ function onWindow(data, callback) {
     q = async.queue(worker, 8);
     q.push(items);
     q.drain = function () {
-        sc.writeJSON(data, items);
+        sc.writeJSON(data, items, function (error) {
+            callback(error);
+        });
     };
     
     function worker(task, callback) {
